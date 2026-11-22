@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>LIAM'S GOLF</title>
+<style>
+  body { margin:0; background:#0f3d21; color:#f4fff6; font-family:ui-monospace,Consolas,monospace;
+         display:flex; flex-direction:column; align-items:center; min-height:100vh; }
+  h1 { letter-spacing:4px; text-shadow:3px 3px 0 #000; margin:14px 0 8px; }
+  h1 span { color:#e63946; }
+  #wrap { position:relative; width:800px; height:500px; box-shadow:0 8px 0 #0008; }
+  canvas { display:block; border-radius:8px; }
+  #overlay { position:absolute; inset:0; background:#0b2616d9; border-radius:8px; display:flex;
+             flex-direction:column; align-items:center; justify-content:center; gap:10px; text-align:center; padding:20px; }
+  #overlay h2 { margin:0 0 6px; font-size:1.8rem; }
+  #overlay p { margin:2px 0; opacity:.85; }
+  .btn { background:#1f6b3a; color:#fff; border:2px solid #f2e2a9; border-radius:8px; padding:10px 22px;
+         font:inherit; font-size:1.1rem; cursor:pointer; min-width:260px; }
+  .btn:hover { background:#e63946; }
+  .levels { display:grid; grid-template-columns:1fr 1fr; gap:8px 12px; margin-top:6px; }   /* 7 levels: two columns so they fit */
+  .levels .btn { min-width:200px; padding:7px 14px; }
+  .btn small { display:block; opacity:.75; font-size:.75rem; }
+  .btn:disabled { opacity:.4; cursor:not-allowed; }
+  .btn:disabled:hover { background:#1f6b3a; }
+  .nameBox { font:inherit; font-size:1.3rem; text-align:center; padding:10px; width:280px; border-radius:8px;
+             border:2px solid #f2e2a9; background:#0b2616; color:#9dffb5; }
+  #nameRules { min-height:70px; text-align:left; font-size:.9rem; }
+  .rule.ok { color:#8dff9c; } .rule.bad { color:#ffb3b3; }
+  #help { opacity:.7; font-size:.85rem; margin:10px; }
+</style>
+</head>
+<body>
+<h1>LIAM'S <span>GOLF</span></h1>
+<div id="wrap">
+  <canvas id="game" width="800" height="500"></canvas>
+  <div id="overlay"></div>
+</div>
+<div id="help">Left/Right: aim (hold Shift = fine) | Up/Down or 1-4: club | Enter or click: start backswing, lock power, lock speed, lock distance (stop it high = further and higher, then Liam swings!) | Esc: cancel swing</div>
+<script src="courses.js"></script>
+<script src="render.js"></script>
+<script src="intro.js"></script>
+<script src="view3d.js"></script>
+<script src="distance.js"></script>
+<script src="username.js"></script>
+<script src="game.js"></script>
+</body>
+</html>

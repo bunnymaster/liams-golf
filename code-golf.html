@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LIAM'S GOLF</title>
+<style>
+  :root { --grass:#1f6b3a; --dark:#0f3d21; --sand:#f2e2a9; --flag:#e63946; --ink:#f4fff6; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: ui-monospace, Consolas, monospace; background: var(--dark); color: var(--ink); }
+  header { text-align:center; padding:18px 10px 6px; }
+  h1 { margin:0; letter-spacing:4px; font-size:2.2rem; text-shadow:3px 3px 0 #000; }
+  h1 span { color: var(--flag); }
+  .sub { opacity:.7; font-size:.85rem; }
+  main { display:grid; grid-template-columns: 220px 1fr; gap:16px; max-width:980px; margin:12px auto; padding:0 12px; }
+  nav { display:flex; flex-direction:column; gap:6px; }
+  nav button { text-align:left; padding:8px 10px; background:var(--grass); color:var(--ink); border:2px solid transparent; border-radius:6px; cursor:pointer; font:inherit; }
+  nav button.active { border-color: var(--sand); }
+  nav button .score { float:right; opacity:.9; }
+  section { background:var(--grass); border-radius:10px; padding:16px; box-shadow:0 6px 0 #0008; }
+  h2 { margin:0 0 6px; }
+  .meta { display:flex; gap:16px; margin:10px 0; font-size:1.05rem; }
+  .meta b { color: var(--sand); }
+  textarea { width:100%; height:120px; background:#0b2616; color:#9dffb5; border:2px solid var(--sand); border-radius:6px; padding:10px; font:1rem ui-monospace, Consolas, monospace; resize:vertical; }
+  .row { margin-top:10px; }
+  .row button { background:var(--flag); color:#fff; border:0; padding:10px 18px; font:inherit; font-weight:bold; border-radius:6px; cursor:pointer; }
+  .row button:hover { filter:brightness(1.15); }
+  #chars.over { color:#ff8a8a; }
+  #results { margin-top:12px; font-size:.9rem; }
+  .test { padding:3px 6px; border-radius:4px; margin:2px 0; white-space:pre-wrap; word-break:break-all; }
+  .test.ok { background:#0b4a22; } .test.bad { background:#6b1d1d; }
+  #verdict { font-size:1.5rem; margin-top:12px; font-weight:bold; min-height:2rem; }
+  footer { text-align:center; padding:12px; opacity:.8; }
+  @media (max-width:700px) { main { grid-template-columns:1fr; } nav { flex-direction:row; flex-wrap:wrap; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>LIAM'S <span>GOLF</span></h1>
+  <div class="sub">Solve each hole in the fewest characters. Lower is better. Write a JS function, e.g. <code>n=>n*2</code></div>
+</header>
+<main>
+  <nav id="holes"></nav>
+  <section>
+    <h2 id="title"></h2>
+    <div id="desc"></div>
+    <div class="meta">
+      <div>Par: <b id="par"></b></div>
+      <div>Strokes: <b id="chars">0</b></div>
+      <div>Best: <b id="best">-</b></div>
+    </div>
+    <textarea id="code" spellcheck="false" placeholder="n=>n*2"></textarea>
+    <div class="row"><button id="run">SWING (Ctrl+Enter)</button></div>
+    <div id="verdict"></div>
+    <div id="results"></div>
+  </section>
+</main>
+<footer id="total"></footer>
+
+<script>
+// ---------- Course data: tests are [args, expected] ----------
+const HOLES = [
+  { name:"Double Trouble", par:8, desc:"Take a number, return it doubled.",
+    tests:[[[2],4],[[0],0],[[-5],-10],[[21],42]] },
+  { name:"Sum Sand Trap", par:20, desc:"Take an array of numbers, return their sum.",
+    tests:[[[[1,2,3]],6],[[[]],0],[[[-1,1,10]],10],[[[5]],5]] },
+  { name:"Backwards Bunker", par:28, desc:"Reverse a string.",
+    tests:[[["abc"],"cba"],[[""],""],[["Liam"],"maiL"],[["racecar!"],"!racecar"]] },
+  { name:"Palindrome Pond", par:30, desc:"Return true if the string reads the same backwards.",
+    tests:[[["abba"],true],[["abc"],false],[[""],true],[["racecar"],true],[["ab"],false]] },
+  { name:"Max Fairway", par:20, desc:"Return the largest number in a non-empty array.",
+    tests:[[[[1,5,3]],5],[[[-4,-2,-9]],-2],[[[7]],7],[[[0,100,99]],100]] },
+  { name:"Vowel Valley", par:32, desc:"Count the vowels (aeiou, any case) in a string.",
+    tests:[[["hello"],2],[["xyz"],0],[["AEIOU"],5],[[""],0],[["Liam's Golf"],4]] },
+  { name:"Factorial Fortress", par:20, desc:"Return n! (0! = 1). Hint: name your function (f=n=>...) to recurse.",
+    tests:[[[0],1],[[1],1],[[5],120],[[10],3628800]] },
+  { name:"Fizz Buzz Bluff", par:44, desc:"Given n: return 'FizzBuzz' if divisible by 15, 'Fizz' if by 3, 'Buzz' if by 5, else n itself.",
+    tests:[[[15],"FizzBuzz"],[[9],"Fizz"],[[10],"Buzz"],[[7],7],[[30],"FizzBuzz"],[[1],1]] },
+  { name:"Fibonacci Finale", par:28, desc:"Return the nth Fibonacci number (fib(0)=0, fib(1)=1).",
+    tests:[[[0],0],[[1],1],[[2],1],[[10],55],[[15],610]] },
+];
+
+const TERMS = { "-3":"ALBATROSS!!", "-2":"EAGLE!", "-1":"BIRDIE!", "0":"PAR.", "1":"Bogey.", "2":"Double bogey." };
+const termFor = d => d <= -3 ? TERMS["-3"] : d >= 3 ? "Triple bogey or worse." : TERMS[d];
+const fmt = d => d === 0 ? "E" : d > 0 ? "+" + d : "" + d;
+
+// ---------- Worker runs the code so infinite loops can't freeze the page ----------
+const WORKER_SRC = `onmessage = ({data:{code, tests}}) => {
+  try {
+    const fn = new Function("return (" + code + "\\n)")();
+    postMessage(tests.map(([args, want]) => {
+      let got; try { got = fn(...args); } catch (e) { got = "Error: " + e.message; }
+      return { args, want, got, ok: JSON.stringify(got) === JSON.stringify(want) };
+    }));
+  } catch (e) { postMessage({ error: e.message }); }
+};`;
+
+function runTests(code, tests, timeoutMs = 1500) {
+  return new Promise(resolve => {
+    const url = URL.createObjectURL(new Blob([WORKER_SRC]));
+    const w = new Worker(url);
+    const done = r => { clearTimeout(t); w.terminate(); URL.revokeObjectURL(url); resolve(r); };
+    const t = setTimeout(() => done({ error: "Timed out! Infinite loop? Your ball is lost." }), timeoutMs);
+    w.onmessage = e => done(e.data);
+    w.onerror = e => done({ error: e.message });
+    w.postMessage({ code, tests });
+  });
+}
+
+// ---------- State ----------
+const $ = id => document.getElementById(id);
+const store = JSON.parse(localStorage.getItem("liamsGolf") || "{}"); // { holeIndex: {best, code} }
+let cur = 0;
+const save = () => localStorage.setItem("liamsGolf", JSON.stringify(store));
+const strokes = () => $("code").value.trim().length;
+
+// ---------- Rendering ----------
+function renderNav() {
+  $("holes").innerHTML = "";
+  HOLES.forEach((h, i) => {
+    const b = document.createElement("button");
+    const s = store[i];
+    b.className = i === cur ? "active" : "";
+    b.innerHTML = `${i + 1}. ${h.name}<span class="score">${s ? fmt(s.best - h.par) : ""}</span>`;
+    b.onclick = () => selectHole(i);
+    $("holes").appendChild(b);
+  });
+  const played = Object.keys(store).map(Number);
+  const total = played.reduce((n, i) => n + store[i].best - HOLES[i].par, 0);
+  $("total").textContent = `Holes cleared: ${played.length}/${HOLES.length} | Total vs par: ${fmt(total)}` +
+    (played.length === HOLES.length ? "  COURSE COMPLETE, LIAM!" : "");
+}
+
+function selectHole(i) {
+  cur = i;
+  const h = HOLES[i];
+  $("title").textContent = `Hole ${i + 1}: ${h.name}`;
+  $("desc").textContent = h.desc;
+  $("par").textContent = h.par;
+  $("best").textContent = store[i] ? store[i].best : "-";
+  $("code").value = store[i] ? store[i].code : "";
+  $("verdict").textContent = "";
+  $("results").innerHTML = "";
+  updateCount();
+  renderNav();
+  $("code").focus();
+}
+
+function updateCount() {
+  const n = strokes();
+  $("chars").textContent = n;
+  $("chars").className = n > HOLES[cur].par ? "over" : "";
+}
+
+async function swing() {
+  const code = $("code").value.trim();
+  if (!code) { $("verdict").textContent = "Air swing! Write something first."; return; }
+  const h = HOLES[cur];
+  const res = await runTests(code, h.tests);
+  if (res.error) { $("results").innerHTML = ""; $("verdict").textContent = res.error; return; }
+  $("results").innerHTML = res.map(r =>
+    `<div class="test ${r.ok ? "ok" : "bad"}">${r.ok ? "PASS" : "FAIL"} f(${r.args.map(a => JSON.stringify(a)).join(", ")}) -> ${JSON.stringify(r.got)}` +
+    (r.ok ? "" : `  (wanted ${JSON.stringify(r.want)})`) + `</div>`).join("");
+  if (!res.every(r => r.ok)) { $("verdict").textContent = "Into the water. Fix the failing tests."; return; }
+
+  const n = strokes(), d = n - h.par;
+  $("verdict").textContent = `${termFor(d)} ${n} strokes (${fmt(d)})`;
+  if (!store[cur] || n < store[cur].best) { store[cur] = { best: n, code }; save(); $("best").textContent = n; renderNav(); }
+}
+
+$("code").addEventListener("input", updateCount);
+$("run").onclick = swing;
+$("code").addEventListener("keydown", e => { if (e.ctrlKey && e.key === "Enter") swing(); });
+selectHole(0);
+</script>
+</body>
+</html>
